@@ -1,0 +1,442 @@
+<?php
+// STALKER MACHINE TRANSLATOR
+// php-cli
+//
+// Usage:
+// php cheekibreeki folder:tmp from:ru to:en
+// Optional "comments:yes" or "comments:no"
+// Optional "folderResult:namefolder"
+// Optional "proxy:localhost port:8888"
+// Optional "encoding:ISO-8859-1"
+// 
+// https://github.com/statickidz/php-google-translate-free
+// https://cloud.google.com/translate/docs/languages
+//
+set_time_limit(3000);
+
+msg("");
+msg("STALKER MACHINE TRANSLATOR");
+msg("");
+
+if (count($argv)>1) {
+	$encoding = null;
+	$withComments = false;
+	$folderResult = "result-translation";
+	foreach ($argv as $arg) {
+		if (isMyStringIn(":", $arg)) {
+			$aux = explode(":", $arg);
+			switch ($aux[0]) {
+				case "from":
+					if ($aux[1]) {
+						define("fromLang", $aux[1]);
+					}
+					break;
+				case "to":
+					if ($aux[1]) {
+						define("toLang", $aux[1]);
+					}
+					break;
+				case "folder":
+					if ($aux[1]) {
+						define("folder", $aux[1]);
+					}
+					break;
+				case "proxy":
+					if ($aux[1]) {
+						define("proxy", $aux[1]);
+					}
+					break;
+				case "port":
+					if ($aux[1]) {
+						define("port", $aux[1]);
+					}
+					break;
+				case "comments":
+					if ($aux[1]=="yes") {
+						$withComments = true;
+					} elseif ($aux[1]=="no") {
+						$withComments = false;
+					}
+					break;
+				case "folderResult":
+					if ($aux[1]) {
+						$folderResult = $aux[1];
+					}
+					break;
+				case "encoding":
+					if ($aux[1]) {
+						$encoding = $aux[1];
+					}
+					break;
+			}
+		}
+	}
+	if (!$encoding) $encoding = "ISO-8859-1";
+	header("Content-type: text/html;charset=".$encoding);
+	define("withComments", $withComments);
+	define("folderResult", $folderResult);
+
+	if (defined("folder") and defined("folderResult") and defined("fromLang") and defined("toLang")) {
+		if (is_dir(folder)) {
+			@mkdir(folderResult);
+			readFolder(folder);
+			msg("");
+			msg("|||||||||||||| FINISHED!");
+			msg("");
+			msg("Files are in folder: ".folderResult);
+			msg("");
+		} else {
+			msg("Can't find the folder: ".folder.". Finishing...");
+		}
+	} else {
+		msg("Need more arguments to do anything...");
+	}
+} else {
+	msg("No arguments, can't do anything...");
+}
+msg("");
+die;
+
+function readFolder($folder)
+{
+	if ($handle = opendir($folder)) {
+	    while (false !== ($entry = readdir($handle))) {
+	    	$res = null;
+	        if ($entry != "." && $entry != "..") {
+	            if (is_dir($folder."/".$entry)) {
+	            	return readFolder($folder."/".$entry);
+	            } else {
+	            	$file_parts = pathinfo($entry);
+	            	if ($file_parts['extension']=="xml") {
+	            		$contents = file_get_contents($folder."/".$entry);
+	            		if (fromLang=="ru") {
+	            			$contents = mb_convert_encoding($contents, $encoding, 'CP1251');
+	            		} else {
+	            			$contents = mb_convert_encoding($contents, $encoding);
+	            		}
+	            		if ($res = translateFile($contents, $entry)) {
+	            			file_put_contents(folderResult."/".$entry, $res);
+	            		}
+	            	}
+	            }
+	        }
+	    }
+	    closedir($handle);
+	}
+}
+
+function translateFile($contents, $name)
+{
+	$detectTags = array("text", "bio");
+
+	$document = $contents;
+	$document = explode("\n", $document);
+	if (is_array($document)) {
+		echo "\n\r|||||||||||||| cheeki breeking: ".strtoupper($name)."\n\r\n\r";
+
+		$candidateText = null;
+
+		foreach ($document as $key=>&$line) {
+			$lineTmp = null;
+			$multiLineWay = false;
+
+			foreach ($detectTags as $detectTag) {
+				if (isMyStringIn('<'.$detectTag.'>', $line) and 
+					isMyStringIn('</'.$detectTag.'>', $line)) {
+					$candidateText = get_string_between($line, '<'.$detectTag.'>', '</'.$detectTag.'>');
+					$multiLineWay = false;
+				} else if (isMyStringIn('<'.$detectTag.'>', $line) and 
+					!isMyStringIn('</'.$detectTag.'>', $line)) {
+
+					$candidateText .= $line;
+					$newIndex = $key+1;
+
+					while ( !isMyStringIn('</'.$detectTag.'>', $document[$newIndex]) ) {
+						$candidateText .= $document[$newIndex];
+						unset($document[$newIndex]);
+						$newIndex++;
+					}
+					if ( isMyStringIn('</'.$detectTag.'>', $document[$newIndex]) ) {
+						$candidateText .= $document[$newIndex];
+						unset($document[$newIndex]);
+					}
+					$candidateText = get_string_between($candidateText, '<'.$detectTag.'>', '</'.$detectTag.'>');
+
+					if (substr($candidateText, -1)!=".") {
+						$candidateText .= ".";
+					}
+
+					$multiLineWay = true;
+					//$document = array_values($document);
+				}
+				
+				if ($candidateText)
+				{
+					$transTexts = limiteChars(prefixes($candidateText));
+					if (is_array($transTexts)) {
+						foreach ($transTexts as $transText) {
+							$aux = null;
+							if ($aux = traduce($transText, fromLang, toLang)) {
+								$aux = ltrim(fixes($aux));
+								$lineTmp .= $aux;
+								if (count($transTexts)>1) {
+									$lineTmp .= ". ";
+								}
+							}
+						}
+
+						if ($multiLineWay==false) {
+							$lineTmp = str_replace($candidateText, trim($lineTmp), $line);
+						} else {
+							$lineTmp = '		<'.$detectTag.'>'.$lineTmp.'</'.$detectTag.'>';				
+						}						
+					}
+				} else {
+					if ($multiLineWay==false) {
+						
+					}
+				}
+				$candidateText = null;
+
+			}
+
+			if ($lineTmp) {
+				if (withComments==true) {
+					$lineCommented = str_replace('<'.$detectTag.'>', '<!--<'.$detectTag.'>', $line);
+					$lineCommented = str_replace('</'.$detectTag.'>', '</'.$detectTag.'>-->', $lineCommented);
+					$new[] = $lineCommented;
+				}
+				$new[] = $lineTmp;
+			} else {				
+				$new[] = $line;
+			}
+			echo $new[count($new)-1]."\r\n";
+		}
+		$final = implode($new, "\n");
+		return $final;
+	}
+}
+
+function limiteChars($text)
+{
+	if ($text) {
+		$_text = urlencode($text);
+		if (strlen($_text)>=4800) {
+			$addCom = false;
+			if (mb_substr($text, -1)=="»") {
+				$addCom = true;
+			}
+
+			do {
+				$aux = substr($_text, 0, strpos(wordwrap($_text, 4800), "."));
+				if ($aux) {
+					$_text = trim(str_replace($aux.".", "", $_text));
+					$texts[] = trim(ltrim(urldecode($aux)));
+					//echo strlen($_text)."-----".$text; echo "\n\r\n\r\n\r";
+				} else {
+					print_r("<pre>"); print_r("BUCLE! STOP!"); print_r("</pre>"); die;
+				}
+			} while (strlen($_text)>0 and $_text!="%C2%BB");
+
+			if (is_array($texts) and $addCom==true) {
+				$texts[count($texts)-1] .= "»";
+			}
+
+		} else {
+			$texts[0] = $text;
+		}
+		return $texts;
+	}
+	return false;
+}
+
+function traduce($text, $source, $target)
+{
+	$trans = new GoogleTranslate();
+	$result = $trans->translate($source, $target, $text);
+	return $result;
+}
+
+function isMyStringIn($myString, $phrase)
+{
+    if (strpos($phrase, $myString) !== false) {
+        return true;
+    }
+    return false;
+}
+
+function get_string_between($string, $start, $end)
+{
+    $string = ' ' . $string;
+    $ini = strpos($string, $start);
+    if ($ini == 0) return '';
+    $ini += strlen($start);
+    $len = strpos($string, $end, $ini) - $ini;
+    return substr($string, $ini, $len);
+}
+
+function prefixes($text)
+{
+	if ($text) {
+		$text = str_replace('\n', '\n ', $text);
+		$text = str_replace('	',' ', $text);
+	}
+	return $text;
+}
+
+function fixes($text)
+{
+	if ($text) {
+		$text = str_replace('\ n ', '\n', $text);
+		$text = str_replace('\ n', '\n', $text);
+		$text = str_replace('\n ', '\n', $text);
+		$text = str_replace(' \n ', '\n', $text);
+		$text = str_replace(' \ N', '\n', $text);
+		$text = str_replace('\ N', '\n', $text);
+		$text = str_replace('% c ', '%c', $text);
+		$text = str_replace('% c', '%c', $text);
+		$text = str_replace('% s ', '%s', $text);
+		$text = str_replace('% s', '%s', $text);
+		$text = str_replace('%c', ' %c ', $text);
+		$text = str_replace('%s', ' %s ', $text);
+		$text = str_replace('%c [', '%c[', $text);		
+		$text = str_replace(' ?', '?', $text);
+		$text = str_replace(' ', ' ', $text);
+		$text = str_replace('] ', ']', $text);
+		$text = str_replace(' . ', '. ', $text);		
+		$text = str_replace('acosador', 'stalker', $text);
+		$text = str_replace('Acosador', 'Stalker', $text);
+		$text = str_replace('…', '...', $text);
+		$text = str_replace('chatear', 'charlar', $text);
+		$text = str_replace('Cielo Limpio', 'charlar', $text);
+		$text = str_replace('Brain Scorcher', 'Cauterizador Cerebral', $text);
+		$text = str_replace('Scorcher del cerebro', 'Cauterizador Cerebral', $text);
+		$text = str_replace('\n\n', '\n \n', $text);
+		$text = str_replace(' ...', '...', $text);
+		$text = str_replace(' : ', ':', $text);
+		$text = str_replace('.  ', '. ', $text);
+	}
+	return $text;
+}
+
+function zip($source, $destination)
+{
+    $phar = new PharData($destination);
+    $phar->buildFromDirectory($source, '~[.][0-9a-z]+$~i');
+    return true;
+}
+
+function unzip($source, $destination)
+{
+    $zip = new ZipArchive;
+	if ($zip->open($source) === true) {
+	    $zip->extractTo($destination);
+	    $zip->close();
+	}
+}
+
+function deleteDir($dirPath)
+{
+    if (! is_dir($dirPath)) {
+        throw new InvalidArgumentException("$dirPath must be a directory");
+    }
+    if (substr($dirPath, strlen($dirPath) - 1, 1) != '/') {
+        $dirPath .= '/';
+    }
+    $files = glob($dirPath . '*', GLOB_MARK);
+    foreach ($files as $file) {
+        if (is_dir($file)) {
+            deleteDir($file);
+        } else {
+            unlink($file);
+        }
+    }
+    rmdir($dirPath);
+}
+
+function msg($text)
+{
+	echo " ".$text;
+	echo "\n";
+}
+
+class GoogleTranslate
+{
+    public static function translate($source, $target, $text)
+    {
+        // Request translation
+        $response = self::requestTranslation($source, $target, $text);
+
+        // Get translation text
+        // $response = self::getStringBetween("onmouseout=\"this.style.backgroundColor='#fff'\">", "</span></div>", strval($response));
+
+        // Clean translation
+        $translation = self::getSentencesFromJSON($response);
+		
+		if ($translation) {
+			return $translation;
+		} else {
+			return $text;
+		}
+    }
+
+    protected static function requestTranslation($source, $target, $text)
+    {
+        // Google translate URL
+        $url = "https://translate.google.com/translate_a/single?client=at&dt=t&dt=ld&dt=qca&dt=rm&dt=bd&dj=1&hl=es-ES&ie=UTF-8&oe=UTF-8&inputm=2&otf=2&iid=1dd3b944-fa62-4b55-b330-74909a99969e";
+
+        $fields = array(
+            'sl' => urlencode($source),
+            'tl' => urlencode($target),
+            'q' => urlencode($text)
+        );
+
+        if(strlen($fields['q'])>=5000)
+            throw new \Exception("Maximum number of characters exceeded: 5000");
+        
+        // URL-ify the data for the POST
+        $fields_string = "";
+        foreach ($fields as $key => $value) {
+            $fields_string .= $key . '=' . $value . '&';
+        }
+
+        rtrim($fields_string, '&');
+
+        // Open connection
+        $ch = curl_init();
+
+        // Set the url, number of POST vars, POST data
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_POST, count($fields));
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $fields_string);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_ENCODING, 'UTF-8');
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'AndroidTranslate/5.3.0.RC02.130475354-53000263 5.1 phone TRANSLATE_OPM5_TEST_1');
+        if (defined("proxy") and defined("port")) curl_setopt($ch, CURLOPT_PROXY, "http://".proxy.":".port);
+
+        // Execute post
+        $result = curl_exec($ch);
+
+        // Close connection
+        curl_close($ch);
+
+        return $result;
+    }
+
+    protected static function getSentencesFromJSON($json)
+    {
+        $sentencesArray = json_decode($json, true);
+        $sentences = "";
+
+		if (is_array($sentencesArray)) {
+			foreach ($sentencesArray["sentences"] as $s) {
+				$sentences .= isset($s["trans"]) ? $s["trans"] : '';
+			}
+
+			return $sentences;
+		}
+		return false;
+    }
+}
