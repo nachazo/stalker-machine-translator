@@ -14,10 +14,6 @@
 //
 set_time_limit(3000);
 
-msg("");
-msg("STALKER MACHINE TRANSLATOR");
-msg("");
-
 if (count($argv)>1) {
 	$encoding = null;
 	$withComments = false;
@@ -75,6 +71,10 @@ if (count($argv)>1) {
 	header("Content-type: text/html;charset=".$encoding);
 	define("withComments", $withComments);
 	define("folderResult", $folderResult);
+
+	msg("");
+	msg("STALKER MACHINE TRANSLATOR");
+	msg("");
 
 	if (defined("folder") and defined("folderResult") and defined("fromLang") and defined("toLang")) {
 		if (is_dir(folder)) {
