@@ -526,6 +526,8 @@ function fixes($text)
 		$text = str_replace('Single people', 'Loners', $text);
 		$text = str_replace('Overshoot', 'Blowout', $text);
 		$text = str_replace('overshoot', 'blowout', $text);
+		$text = str_replace(' \ n ', ' \n ', $text);
+		$text = str_replace('  %', ' %', $text);
 		//$text = str_replace('grouse', 'Grouse', $text);
 		//$text = str_replace(' bleed', ' Sawn-off', $text);
 		//$text = str_replace('Leader', 'Stalker Guide', $text);
