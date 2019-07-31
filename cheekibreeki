@@ -487,6 +487,8 @@ function fixes($text)
 		$text = str_replace('0.2', '0,2', $text);
 		$text = str_replace('0.1', '0,1', $text);
 		$text = str_replace('0.9', '0,9', $text);
+		$text = str_replace('0 , 9', '0,9', $text);
+		$text = str_replace('0 , 2', '0,2', $text);
 		$text = str_replace('0 , 1', '0,1', $text);
 		$text = str_replace('Unsettled', 'Uncalibrated', $text);
 		$text = str_replace('Delay zryva', 'Explosion delay', $text);
@@ -534,8 +536,7 @@ function fixes($text)
 		//$text = str_replace(' , ', ', ', $text);
 		//$text = str_replace('Single', 'Loner', $text);
 		//$text = str_replace('single', 'loner', $text);
-		//$text = str_replace('Shooter', 'Strelok', $text);
-		
+		//$text = str_replace('Shooter', 'Strelok', $text);		
 	}
 	return $text;
 }
