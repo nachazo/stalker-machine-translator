@@ -377,7 +377,7 @@ function fixes($text)
 		$text = str_replace('…', '...', $text);
 		$text = str_replace('chatear', 'charlar', $text);
 		$text = str_replace('Cielo Limpio', 'Clear Sky', $text);
-		$text = str_replace('Brain Scorcher', 'Cauterizador Cerebral', $text);
+		//$text = str_replace('Brain Scorcher', 'Cauterizador Cerebral', $text);
 		$text = str_replace('Scorcher del cerebro', 'Cauterizador Cerebral', $text);
 		$text = str_replace('\n\n', '\n \n', $text);
 		$text = str_replace(' ...', '...', $text);
@@ -530,6 +530,7 @@ function fixes($text)
 		$text = str_replace('overshoot', 'blowout', $text);
 		$text = str_replace(' \ n ', ' \n ', $text);
 		$text = str_replace('  %', ' %', $text);
+		$text = str_replace('%[', '%c[', $text);
 		//$text = str_replace('grouse', 'Grouse', $text);
 		//$text = str_replace(' bleed', ' Sawn-off', $text);
 		//$text = str_replace('Leader', 'Stalker Guide', $text);
